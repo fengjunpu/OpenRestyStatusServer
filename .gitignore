@@ -1,0 +1,18 @@
+# Windows:
+Thumbs.db
+ehthumbs.db
+# C/C++:
+*.a
+*.so
+*.o
+*.bak
+*.rar
+*.dat
+*.yuv
+*.obj
+*.exe
+*.lib
+*.sbr
+*.idb
+*.pdb
+*.dll

@@ -57,13 +57,13 @@ function send_resp_string(status,message_type,error_string)
 	--HTTP应答头统一都是OK，这样便于查找是应用错误，还是系统错误
 	--ngx.status = status
 	local jrsp = {}
-	jrsp["EasyDarwin"] = {}
-	jrsp["EasyDarwin"]["Header"] = {}
-	jrsp["EasyDarwin"]["Header"]["Version"] = "1.0"
-	jrsp["EasyDarwin"]["Header"]["CSeq"] = "1"
-	jrsp["EasyDarwin"]["Header"]["MessageType"] = message_type
-	jrsp["EasyDarwin"]["Header"]["ErrorNum"] = string.format("%d",status)
-	jrsp["EasyDarwin"]["Header"]["ErrorString"] = error_string
+	jrsp["StatusProtocol"] = {}
+	jrsp["StatusProtocol"]["Header"] = {}
+	jrsp["StatusProtocol"]["Header"]["Version"] = "1.0"
+	jrsp["StatusProtocol"]["Header"]["CSeq"] = "1"
+	jrsp["StatusProtocol"]["Header"]["MessageType"] = message_type
+	jrsp["StatusProtocol"]["Header"]["ErrorNum"] = string.format("%d",status)
+	jrsp["StatusProtocol"]["Header"]["ErrorString"] = error_string
 	local resp_str = cjson.encode(jrsp)
 	--ngx.log(ngx.NOTICE, "send_resp_string:", resp_str)
 	ngx.header.content_length = string.len(resp_str)
@@ -79,19 +79,19 @@ function get_request_param()
         return nil, "req body is not a json"
     end
 	
-    if not req_body["EasyDarwin"]
-        or not req_body["EasyDarwin"]["Header"]
-        or not req_body["EasyDarwin"]["Header"]["Version"]
-        or not req_body["EasyDarwin"]["Header"]["CSeq"]
-        or not req_body["EasyDarwin"]["Header"]["MessageType"]
-	or not req_body["EasyDarwin"]["Body"]
-      --  or not req_body["EasyDarwin"]["Body"]["SerialNumber"]
-      --  or not req_body["EasyDarwin"]["Body"]["AuthCode"]
-        or type(req_body["EasyDarwin"]["Header"]["Version"]) ~= "string"
-	or type(req_body["EasyDarwin"]["Header"]["CSeq"]) ~= "string"
-        or type(req_body["EasyDarwin"]["Header"]["MessageType"]) ~= "string"
-        --or type(req_body["EasyDarwin"]["Body"]["SerialNumber"]) ~= "string"
-        --or type(req_body["EasyDarwin"]["Body"]["AuthCode"]) ~= "string"
+    if not req_body["StatusProtocol"]
+        or not req_body["StatusProtocol"]["Header"]
+        or not req_body["StatusProtocol"]["Header"]["Version"]
+        or not req_body["StatusProtocol"]["Header"]["CSeq"]
+        or not req_body["StatusProtocol"]["Header"]["MessageType"]
+	or not req_body["StatusProtocol"]["Body"]
+      --  or not req_body["StatusProtocol"]["Body"]["SerialNumber"]
+      --  or not req_body["StatusProtocol"]["Body"]["AuthCode"]
+        or type(req_body["StatusProtocol"]["Header"]["Version"]) ~= "string"
+	or type(req_body["StatusProtocol"]["Header"]["CSeq"]) ~= "string"
+        or type(req_body["StatusProtocol"]["Header"]["MessageType"]) ~= "string"
+        --or type(req_body["StatusProtocol"]["Body"]["SerialNumber"]) ~= "string"
+        --or type(req_body["StatusProtocol"]["Body"]["AuthCode"]) ~= "string"
 		then
         ngx.log(ngx.ERR, "invalid args")
         return nil, "invalid protocol format args"
@@ -110,16 +110,16 @@ function do_status_query(jreq)
 	    ngx.log(ngx.ERR, "redis_iresty:new auth_red_handler failed")
 		return false, "redis_iresty:new auth_red_handler failed"
 	end
-	--ngx.log(ngx.NOTICE, jreq["EasyDarwin"]["Body"]["SerialNumber"])
-	--ngx.log(ngx.NOTICE, jreq["EasyDarwin"]["Body"]["AuthCode"])
-	local ok, err = auth_red_handler:eval(script_utils.script_check_authcode,1,jreq["EasyDarwin"]["Body"]["SerialNumber"],jreq["EasyDarwin"]["Body"]["AuthCode"],"Read")
+	--ngx.log(ngx.NOTICE, jreq["StatusProtocol"]["Body"]["SerialNumber"])
+	--ngx.log(ngx.NOTICE, jreq["StatusProtocol"]["Body"]["AuthCode"])
+	local ok, err = auth_red_handler:eval(script_utils.script_check_authcode,1,jreq["StatusProtocol"]["Body"]["SerialNumber"],jreq["StatusProtocol"]["Body"]["AuthCode"],"Read")
 	if not ok then
 	    ngx.log(ngx.ERR, "check authcode failed : ", err)
 		return false,"check authcode failed"
 	end
 
 	--构造操作参数
-	local key = jreq["EasyDarwin"]["Body"]["SerialNumber"]
+	local key = jreq["StatusProtocol"]["Body"]["SerialNumber"]
 	local args ={"TerminalType","VendorName","ServerIP","StreamStatus","StreamDssIP"}
 	---这里没有区分dss专门处理，而是混在一起，是为了让下面接收的时候好处理一下
 	---如果某一个字段查不到值，则status的数组中就没有这个项
@@ -139,23 +139,23 @@ function do_status_query(jreq)
 
 	--默认返回值
 	local jrsp = {}
-	jrsp["EasyDarwin"] = {}
-	jrsp["EasyDarwin"]["Header"] = {}
-	jrsp["EasyDarwin"]["Header"]["Version"] = "1.0"
-	jrsp["EasyDarwin"]["Header"]["CSeq"] = "1"
-	jrsp["EasyDarwin"]["Header"]["MessageType"] = "MSG_STATUS_QUERY_RSP"
+	jrsp["StatusProtocol"] = {}
+	jrsp["StatusProtocol"]["Header"] = {}
+	jrsp["StatusProtocol"]["Header"]["Version"] = "1.0"
+	jrsp["StatusProtocol"]["Header"]["CSeq"] = "1"
+	jrsp["StatusProtocol"]["Header"]["MessageType"] = "MSG_STATUS_QUERY_RSP"
 	if not status or tableutils.table_is_empty(status) then
 	    --ngx.log(ngx.ERR, "do_status_query:commit_pipeline failed", err)
 		--没有查到
-		jrsp["EasyDarwin"]["Header"]["ErrorNum"] = "404"
-		jrsp["EasyDarwin"]["Header"]["ErrorString"] = "Not Found"
+		jrsp["StatusProtocol"]["Header"]["ErrorNum"] = "404"
+		jrsp["StatusProtocol"]["Header"]["ErrorString"] = "Not Found"
 	else
 		--tableutils.printTable(status)
-		jrsp["EasyDarwin"]["Header"]["ErrorNum"] = "200"
-		jrsp["EasyDarwin"]["Header"]["ErrorString"] = "Success OK"
-		jrsp["EasyDarwin"]["Body"] = {}
+		jrsp["StatusProtocol"]["Header"]["ErrorNum"] = "200"
+		jrsp["StatusProtocol"]["Header"]["ErrorString"] = "Success OK"
+		jrsp["StatusProtocol"]["Body"] = {}
 		for i, value in pairs(status) do
-			jrsp["EasyDarwin"]["Body"][args[i]] = value
+			jrsp["StatusProtocol"]["Body"][args[i]] = value
 		end
 	end
 	send_resp_table(ngx.HTTP_OK,jrsp)
@@ -176,16 +176,16 @@ function do_status_mutliquery(jreq)
 	--逐个判断Authcode的有效性
 	local authpass_array = {}
 	local authnpass_array = {}
-	if(type(jreq["EasyDarwin"]["Body"]["SerialNumber"]) == "string") then	
-		local ok, err = auth_red_handler:eval(script_utils.script_check_authcode,1,jreq["EasyDarwin"]["Body"]["SerialNumber"],jreq["EasyDarwin"]["Body"]["AuthCode"],"Read")
+	if(type(jreq["StatusProtocol"]["Body"]["SerialNumber"]) == "string") then	
+		local ok, err = auth_red_handler:eval(script_utils.script_check_authcode,1,jreq["StatusProtocol"]["Body"]["SerialNumber"],jreq["StatusProtocol"]["Body"]["AuthCode"],"Read")
 		if not ok then
 			ngx.log(ngx.ERR, "check authcode failed : ", err)
-			authnpass_array[#authnpass_array+1] = jreq["EasyDarwin"]["Body"]["SerialNumber"]
+			authnpass_array[#authnpass_array+1] = jreq["StatusProtocol"]["Body"]["SerialNumber"]
 		else
-			authpass_array[#authpass_array+1] = jreq["EasyDarwin"]["Body"]["SerialNumber"]
+			authpass_array[#authpass_array+1] = jreq["StatusProtocol"]["Body"]["SerialNumber"]
 		end
 	else
-		for index,value in ipairs(jreq["EasyDarwin"]["Body"]) do
+		for index,value in ipairs(jreq["StatusProtocol"]["Body"]) do
 			local ok, err = auth_red_handler:eval(script_utils.script_check_authcode,1,value.SerialNumber,value.AuthCode,"Read")
 				if not ok then
 					ngx.log(ngx.ERR, "check authcode failed : ", err)
@@ -205,11 +205,11 @@ function do_status_mutliquery(jreq)
 	
 	--默认返回值
 	local jrsp = {}
-	jrsp["EasyDarwin"] = {}
-	jrsp["EasyDarwin"]["Header"] = {}
-	jrsp["EasyDarwin"]["Header"]["Version"] = "1.0"
-	jrsp["EasyDarwin"]["Header"]["CSeq"] = "1"
-	jrsp["EasyDarwin"]["Header"]["MessageType"] = "MSG_STATUS_MULTIQUERY_RSP"	
+	jrsp["StatusProtocol"] = {}
+	jrsp["StatusProtocol"]["Header"] = {}
+	jrsp["StatusProtocol"]["Header"]["Version"] = "1.0"
+	jrsp["StatusProtocol"]["Header"]["CSeq"] = "1"
+	jrsp["StatusProtocol"]["Header"]["MessageType"] = "MSG_STATUS_MULTIQUERY_RSP"	
 	
 	local rspbody_array = {}
 	local args ={"TerminalType","VendorName","ServerIP","StreamStatus","StreamDssIP"}
@@ -245,10 +245,10 @@ function do_status_mutliquery(jreq)
 	end
 	
 	if next(rspbody_array) ~= nil then
-		jrsp["EasyDarwin"]["Header"]["ErrorNum"] = "200"
-		jrsp["EasyDarwin"]["Header"]["ErrorString"] = "Success OK"
-		jrsp["EasyDarwin"]["Body"] = {}
-		jrsp["EasyDarwin"]["Body"]= rspbody_array;
+		jrsp["StatusProtocol"]["Header"]["ErrorNum"] = "200"
+		jrsp["StatusProtocol"]["Header"]["ErrorString"] = "Success OK"
+		jrsp["StatusProtocol"]["Body"] = {}
+		jrsp["StatusProtocol"]["Body"]= rspbody_array;
 	end
 	send_resp_table(ngx.HTTP_OK,jrsp)	
     return true, "OK"
@@ -265,18 +265,18 @@ function process_msg()
 	end
 
 	--分命令处理
-	if(jreq["EasyDarwin"]["Header"]["MessageType"] == "MSG_STATUS_QUERY_REQ") then
+	if(jreq["StatusProtocol"]["Header"]["MessageType"] == "MSG_STATUS_QUERY_REQ") then
 		local ok, err = do_status_query(jreq);
 		if not ok then
 			send_resp_string(ngx.HTTP_BAD_REQUEST,"MSG_STATUS_QUERY_RSP",err);
 		end
-	elseif (jreq["EasyDarwin"]["Header"]["MessageType"] == "MSG_STATUS_MULTIQUERY_REQ") then
+	elseif (jreq["StatusProtocol"]["Header"]["MessageType"] == "MSG_STATUS_MULTIQUERY_REQ") then
 		local ok, err = do_status_mutliquery(jreq);
 		if not ok then
 			send_resp_string(ngx.HTTP_BAD_REQUEST,"MSG_STATUS_MULTIQUERY_RSP",err);
 		end
 	else
-		ngx.log(ngx.ERR, "invalid MessageType",jreq["EasyDarwin"]["Header"]["MessageType"])
+		ngx.log(ngx.ERR, "invalid MessageType",jreq["StatusProtocol"]["Header"]["MessageType"])
 		send_resp_string(ngx.HTTP_BAD_REQUEST,"any","invalid MessageType");
 	end
 end

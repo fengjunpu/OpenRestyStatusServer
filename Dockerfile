@@ -2,7 +2,10 @@
 FROM daocloud.io/geyijun/open_resty_common:v0.03
 MAINTAINER geyijun<geyijun@xiongmaitech.com>
 
-#采用supervisor来管理多任务
+sudo yum -y install bind-utils
+sudo yum -y install jq
+
+#虏脡脫脙supervisor脌麓鹿脺脌铆露脿脠脦脦帽
 COPY supervisord.conf /etc/supervisord.conf
 COPY statusserver_lua/ /xm_workspace/xmcloud3.0/statusserver_lua/
 
